@@ -9,8 +9,8 @@
 #include <deque>
 #include <functional>
 
-#include "common/types.h"
-#include "orderbook/l3_order_book.h"
+#include "common/types.hpp"
+#include "orderbook/l3_order_book.hpp"
 
 namespace HFT_sdk
 {

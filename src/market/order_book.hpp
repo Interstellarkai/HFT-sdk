@@ -5,7 +5,7 @@
 // Used as a lightweight alternative to L3OrderBook for basic simulations.
 // ============================================================================
 
-#include "types.h"
+#include "types.hpp"
 #include <map>
 #include <vector>
 #include <deque>

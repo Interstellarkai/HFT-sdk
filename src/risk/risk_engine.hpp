@@ -10,8 +10,8 @@
 #include <mutex>
 #include <unordered_map>
 
-#include "common/constants.h"
-#include "common/types.h"
+#include "common/constants.hpp"
+#include "common/types.hpp"
 
 namespace HFT_sdk
 {

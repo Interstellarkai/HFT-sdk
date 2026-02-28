@@ -11,9 +11,9 @@
 #include <unordered_map>
 #include <vector>
 
-#include "common/clock.h"
-#include "common/types.h"
-#include "market/matching_engine.h"
+#include "common/clock.hpp"
+#include "common/types.hpp"
+#include "market/matching_engine.hpp"
 
 namespace hft_sim
 {

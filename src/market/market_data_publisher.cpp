@@ -2,7 +2,7 @@
 // HFT-sdk — Market Data Publisher Implementation
 // ============================================================================
 
-#include "market_data_publisher.h"
+#include "market_data_publisher.hpp"
 
 using namespace HFT_sdk;
 

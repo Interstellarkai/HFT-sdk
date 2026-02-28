@@ -5,19 +5,19 @@
 // and publishes execution reports, trades, and market data updates.
 // ============================================================================
 
-#include <orderbook/l1_feed.h>
-#include <orderbook/l2_aggregator.h>
-#include <orderbook/l3_order_book.h>
+#include <orderbook/l1_feed.hpp>
+#include <orderbook/l2_aggregator.hpp>
+#include <orderbook/l3_order_book.hpp>
 
 #include <functional>
 #include <memory>
 #include <unordered_map>
 #include <vector>
 
-#include "clock.h"
-#include "market_data_publisher.h"
-#include "order_book.h"
-#include "types.h"
+#include "clock.hpp"
+#include "market_data_publisher.hpp"
+#include "order_book.hpp"
+#include "types.hpp"
 
 namespace HFT_sdk
 {

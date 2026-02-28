@@ -2,7 +2,7 @@
 // HFT-sdk — Telemetry Implementation
 // ============================================================================
 
-#include "telemetry.h"
+#include "telemetry.hpp"
 
 using namespace HFT_sdk;
 

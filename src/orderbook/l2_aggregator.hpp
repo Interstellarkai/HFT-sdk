@@ -8,9 +8,9 @@
 #include <algorithm>
 #include <vector>
 
-#include "common/constants.h"
-#include "common/types.h"
-#include "orderbook/l3_order_book.h"
+#include "common/constants.hpp"
+#include "common/types.hpp"
+#include "orderbook/l3_order_book.hpp"
 
 namespace HFT_sdk
 {

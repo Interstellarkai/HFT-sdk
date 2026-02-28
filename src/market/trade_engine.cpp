@@ -2,7 +2,7 @@
 // HFT-sdk — Trade Engine Implementation
 // ============================================================================
 
-#include "trade_engine.h"
+#include "trade_engine.hpp"
 
 using namespace HFT_sdk;
 

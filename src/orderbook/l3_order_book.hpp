@@ -14,8 +14,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "constants.h"
-#include "types.h"
+#include "constants.hpp"
+#include "types.hpp"
 
 namespace HFT_sdk
 {
