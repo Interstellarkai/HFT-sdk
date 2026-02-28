@@ -1,0 +1,56 @@
+# ── Build outputs ───────────────────────────────────────────────────────────
+build/
+out/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.sln
+*.vcxproj*
+*.suo
+*.user
+*.ncb
+*.opensdf
+*.sdf
+
+# ── Compiled objects ────────────────────────────────────────────────────────
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+*.pdb
+*.ilk
+*.exp
+
+# ── IDE / Editor ────────────────────────────────────────────────────────────
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.cache/
+compile_commands.json
+
+# ── QuickFIX runtime artifacts ─────────────────────────────────────────────
+store/
+log/
+
+# ── Simulator output ───────────────────────────────────────────────────────
+metrics_output.json
+replay_output.json
+*.csv
+
+# ── OS artifacts ────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ── Dependencies ────────────────────────────────────────────────────────────
+_deps/
