@@ -24,7 +24,7 @@ void MarketDataEngine::on_tob_update(const TopOfBook& tob) {
     msg.symbol    = tob.symbol;
     msg.timestamp = now;
     msg.tob       = tob;
-    (void)md_queue_->push(msg);
+    (void)md_queue_->try_push(msg);
 }
 
 void MarketDataEngine::on_depth_update(const DepthSnapshot& depth) {
@@ -39,7 +39,7 @@ void MarketDataEngine::on_depth_update(const DepthSnapshot& depth) {
     msg.symbol    = depth.symbol;
     msg.timestamp = now;
     msg.depth     = depth;
-    (void)md_queue_->push(msg);
+    (void)md_queue_->try_push(msg);
 }
 
 void MarketDataEngine::on_trade(const Trade& trade) {
@@ -48,11 +48,11 @@ void MarketDataEngine::on_trade(const Trade& trade) {
     msg.symbol    = trade.symbol;
     msg.timestamp = clock_.now();
     msg.trade     = trade;
-    (void)md_queue_->push(msg);  // trades are never throttled
+    (void)md_queue_->try_push(msg);  // trades are never throttled
 }
 
 void MarketDataEngine::process_pending() {
-    while (auto opt = md_queue_->pop()) {
+    while (auto opt = md_queue_->try_pop()) {
         auto& msg = *opt;
         messages_published_++;
 
