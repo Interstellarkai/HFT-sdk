@@ -20,6 +20,7 @@ add_library(HFT-sdk
     src/benchmark_p99.hpp
     src/ScopeTimer.hpp
     src/HPRingBuffer.hpp
+    src/wait_strategies.hpp
     src/common/types.hpp
     src/common/clock.hpp src/common/clock.cpp
     src/orderbook/l3_order_book.cpp src/orderbook/l3_order_book.hpp
