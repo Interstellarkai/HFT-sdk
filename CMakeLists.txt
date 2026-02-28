@@ -44,3 +44,37 @@ target_include_directories(HFT-sdk
 )
 
 target_compile_features(HFT-sdk PUBLIC cxx_std_23)
+
+# ── Testing ─────────────────────────────────────────────────────────────────
+option(HFT_SDK_BUILD_TESTS "Build unit tests" ON)
+
+if(HFT_SDK_BUILD_TESTS)
+    include(FetchContent)
+    FetchContent_Declare(
+        googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG        v1.16.0
+    )
+    set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
+
+    enable_testing()
+
+    add_executable(hft_sdk_tests
+        tests/test_hpringbuffer.cpp
+    )
+
+    target_link_libraries(hft_sdk_tests
+        PRIVATE
+            HFT-sdk
+            GTest::gtest_main
+    )
+
+    target_include_directories(hft_sdk_tests
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+    )
+
+    include(GoogleTest)
+    gtest_discover_tests(hft_sdk_tests)
+endif()
