@@ -2,7 +2,7 @@
 // HFT-sdk — Clock Implementation
 // ============================================================================
 
-#include "clock.h"
+#include "clock.hpp"
 
 namespace HFT_sdk {
 

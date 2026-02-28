@@ -2,7 +2,7 @@
 // HFT-sdk — L2 Aggregator Implementation
 // ============================================================================
 
-#include "l2_aggregator.h"
+#include "l2_aggregator.hpp"
 
 using namespace HFT_sdk;
 

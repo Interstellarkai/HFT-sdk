@@ -2,7 +2,7 @@
 // HFT-sdk — Latency Model Implementation
 // ============================================================================
 
-#include "latency_model.h"
+#include "latency_model.hpp"
 #include <algorithm>
 
 using namespace HFT_sdk;

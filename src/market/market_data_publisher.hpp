@@ -5,7 +5,7 @@
 // depth-snapshot callbacks. Decoupled from matching engine internals.
 // ============================================================================
 
-#include "types.h"
+#include "types.hpp"
 #include <vector>
 #include <functional>
 

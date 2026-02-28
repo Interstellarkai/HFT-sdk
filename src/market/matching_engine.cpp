@@ -2,10 +2,10 @@
 // HFT-sdk — Matching Engine Implementation
 // ============================================================================
 
-#include "matching_engine.h"
+#include "matching_engine.hpp"
 #include <ScopeTimer.hpp>
 
-#include <risk/risk_engine.h>
+#include <risk/risk_engine.hpp>
 
 using namespace HFT_sdk;
 

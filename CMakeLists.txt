@@ -12,25 +12,25 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_library(HFT-sdk
     STATIC
     src/library_anchor.cpp
-    src/market/order_book.h src/market/order_book.cpp
-    src/market/matching_engine.h src/market/matching_engine.cpp
-    src/market/market_data_publisher.h src/market/market_data_publisher.cpp
-    src/market/trade_engine.h src/market/trade_engine.cpp
-    src/market/market_data_engine.h src/market/market_data_engine.cpp
+    src/market/order_book.hpp src/market/order_book.cpp
+    src/market/matching_engine.hpp src/market/matching_engine.cpp
+    src/market/market_data_publisher.hpp src/market/market_data_publisher.cpp
+    src/market/trade_engine.hpp src/market/trade_engine.cpp
+    src/market/market_data_engine.hpp src/market/market_data_engine.cpp
     src/benchmark_p99.hpp
     src/ScopeTimer.hpp
     src/HPRingBuffer.hpp
-    src/common/types.h
-    src/common/clock.h src/common/clock.cpp
-    src/orderbook/l3_order_book.cpp src/orderbook/l3_order_book.h
-    src/orderbook/l2_aggregator.cpp src/orderbook/l2_aggregator.h
-    src/orderbook/l1_feed.cpp src/orderbook/l1_feed.h
-    src/common/memory_pool.h
-    src/common/constants.h
-    src/risk/risk_engine.cpp src/risk/risk_engine.h
-    src/latency/latency_model.h src/latency/latency_model.cpp
-    src/metrics/telemetry.h src/metrics/telemetry.cpp
-    src/metrics/latency_histogram.h src/metrics/latency_histogram.cpp
+    src/common/types.hpp
+    src/common/clock.hpp src/common/clock.cpp
+    src/orderbook/l3_order_book.cpp src/orderbook/l3_order_book.hpp
+    src/orderbook/l2_aggregator.cpp src/orderbook/l2_aggregator.hpp
+    src/orderbook/l1_feed.cpp src/orderbook/l1_feed.hpp
+    src/common/memory_pool.hpp
+    src/common/constants.hpp
+    src/risk/risk_engine.cpp src/risk/risk_engine.hpp
+    src/latency/latency_model.hpp src/latency/latency_model.cpp
+    src/metrics/telemetry.hpp src/metrics/telemetry.cpp
+    src/metrics/latency_histogram.hpp src/metrics/latency_histogram.cpp
 )
 
 

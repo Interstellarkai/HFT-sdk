@@ -2,7 +2,7 @@
 // HFT-sdk — Market Data Engine Implementation
 // ============================================================================
 
-#include "market_data_engine.h"
+#include "market_data_engine.hpp"
 
 using namespace HFT_sdk;
 using namespace hft_sim;

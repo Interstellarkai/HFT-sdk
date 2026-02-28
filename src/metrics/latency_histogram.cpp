@@ -2,7 +2,7 @@
 // HFT-sdk — Latency Histogram (explicit template instantiations)
 // ============================================================================
 
-#include "latency_histogram.h"
+#include "latency_histogram.hpp"
 
 // Template instantiation for common bucket configurations
 namespace HFT_sdk {

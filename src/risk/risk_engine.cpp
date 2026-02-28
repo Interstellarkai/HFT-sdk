@@ -2,7 +2,7 @@
 // HFT-sdk — Risk Engine Implementation
 // ============================================================================
 
-#include "risk_engine.h"
+#include "risk_engine.hpp"
 
 #include <cstdlib>
 

@@ -16,9 +16,9 @@
 #include <string>
 #include <unordered_map>
 
-#include "clock.h"
-#include "latency_histogram.h"
-#include "types.h"
+#include "clock.hpp"
+#include "latency_histogram.hpp"
+#include "types.hpp"
 
 namespace HFT_sdk
 {
