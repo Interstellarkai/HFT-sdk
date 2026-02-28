@@ -34,7 +34,7 @@ add_library(HFT-sdk
 )
 
 
-add_library(HFT::Toolset ALIAS HFT-sdk)
+add_library(HFT::sdk ALIAS HFT-sdk)
 
 target_include_directories(HFT-sdk
     PUBLIC

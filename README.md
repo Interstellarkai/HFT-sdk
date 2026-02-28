@@ -88,7 +88,7 @@ cmake .. -DCMAKE_BUILD_TYPE=Release
 cmake --build .
 ```
 
-The static library target is `HFT-sdk` (alias `HFT::Toolset`). Public headers live under `src/`.
+The static library target is `HFT-sdk` (alias `HFT::sdk`). Public headers live under `src/`.
 
 ## Usage
 
