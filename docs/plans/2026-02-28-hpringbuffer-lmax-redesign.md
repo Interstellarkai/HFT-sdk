@@ -2,9 +2,12 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Redesign HPRingBuffer with LMAX Disruptor-inspired cache-line isolation, monotonic sequences, and compile-time wait strategies.
+**Goal:** Redesign HPRingBuffer with LMAX Disruptor-inspired cache-line isolation, monotonic sequences, and compile-time
+wait strategies.
 
-**Architecture:** Header-only SPSC ring buffer. Three changes: (1) pad write/read sequences to separate cache lines, (2) replace wrapping indices with monotonic sequences, (3) add WaitStrategy template parameter with blocking/non-blocking API split. One internal consumer (`market_data_engine.cpp`) needs updating to use `try_push`/`try_pop`.
+**Architecture:** Header-only SPSC ring buffer. Three changes: (1) pad write/read sequences to separate cache lines, (2)
+replace wrapping indices with monotonic sequences, (3) add WaitStrategy template parameter with blocking/non-blocking
+API split. One internal consumer (`market_data_engine.cpp`) needs updating to use `try_push`/`try_pop`.
 
 **Tech Stack:** C++23, `std::atomic`, `alignas`, `_mm_pause` (x86), `std::condition_variable` (BlockWait), Google Test
 
@@ -13,6 +16,7 @@
 ## Task 0: Set Up Google Test Infrastructure
 
 **Files:**
+
 - Modify: `CMakeLists.txt` (add test target and GTest dependency)
 - Create: `tests/test_hpringbuffer.cpp` (skeleton)
 
@@ -24,35 +28,35 @@ Append to the end of `CMakeLists.txt`:
 # ── Testing ─────────────────────────────────────────────────────────────────
 option(HFT_SDK_BUILD_TESTS "Build unit tests" ON)
 
-if(HFT_SDK_BUILD_TESTS)
+if (HFT_SDK_BUILD_TESTS)
     include(FetchContent)
     FetchContent_Declare(
-        googletest
-        GIT_REPOSITORY https://github.com/google/googletest.git
-        GIT_TAG        v1.15.2
+            googletest
+            GIT_REPOSITORY https://github.com/google/googletest.git
+            GIT_TAG v1.15.2
     )
     FetchContent_MakeAvailable(googletest)
 
     enable_testing()
 
     add_executable(hft_sdk_tests
-        tests/test_hpringbuffer.cpp
+            tests/test_hpringbuffer.cpp
     )
 
     target_link_libraries(hft_sdk_tests
-        PRIVATE
+            PRIVATE
             HFT-sdk
             GTest::gtest_main
     )
 
     target_include_directories(hft_sdk_tests
-        PRIVATE
+            PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/src
     )
 
     include(GoogleTest)
     gtest_discover_tests(hft_sdk_tests)
-endif()
+endif ()
 ```
 
 **Step 2: Create `tests/test_hpringbuffer.cpp` with a single smoke test**
@@ -75,6 +79,7 @@ cd /Users/limkaisheng/Projects/HFT-exchange/external/HFT-sdk
 cmake -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug && cmake --build cmake-build-debug -j$(sysctl -n hw.ncpu)
 cd cmake-build-debug && ctest --output-on-failure
 ```
+
 Expected: 1 test passes.
 
 **Step 4: Commit**
@@ -89,6 +94,7 @@ git commit -m "test: set up Google Test infrastructure with HPRingBuffer smoke t
 ## Task 1: Write Wait Strategy Types
 
 **Files:**
+
 - Create: `src/wait_strategies.hpp`
 
 **Step 1: Create `src/wait_strategies.hpp` with all three strategies**
@@ -155,15 +161,18 @@ private:
 
 **Step 2: Add `src/wait_strategies.hpp` to CMakeLists.txt**
 
-In `CMakeLists.txt`, add `src/wait_strategies.hpp` to the `add_library(HFT-sdk STATIC ...)` source list, after the `src/HPRingBuffer.hpp` line.
+In `CMakeLists.txt`, add `src/wait_strategies.hpp` to the `add_library(HFT-sdk STATIC ...)` source list, after the
+`src/HPRingBuffer.hpp` line.
 
 **Step 3: Verify build**
 
 Run:
+
 ```bash
 cd /Users/limkaisheng/Projects/HFT-exchange/external/HFT-sdk
 cmake -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug && cmake --build cmake-build-debug -j$(sysctl -n hw.ncpu)
 ```
+
 Expected: clean build with no errors.
 
 **Step 4: Commit**
@@ -178,6 +187,7 @@ git commit -m "feat: add wait strategy types for HPRingBuffer (BusySpinWait, Yie
 ## Task 2: Rewrite HPRingBuffer with LMAX-Inspired Design
 
 **Files:**
+
 - Modify: `src/HPRingBuffer.hpp` (full rewrite)
 
 **Step 1: Replace entire contents of `src/HPRingBuffer.hpp`**
@@ -325,10 +335,12 @@ private:
 **Step 2: Verify build**
 
 Run:
+
 ```bash
 cd /Users/limkaisheng/Projects/HFT-exchange/external/HFT-sdk
 cmake --build cmake-build-debug -j$(sysctl -n hw.ncpu)
 ```
+
 Expected: clean build. No errors.
 
 **Step 3: Commit**
@@ -343,6 +355,7 @@ git commit -m "feat: rewrite HPRingBuffer with LMAX-inspired monotonic sequences
 ## Task 2.5: Write Comprehensive HPRingBuffer Tests
 
 **Files:**
+
 - Modify: `tests/test_hpringbuffer.cpp` (expand from smoke test to full suite)
 
 **Step 1: Replace `tests/test_hpringbuffer.cpp` with comprehensive tests**
@@ -547,10 +560,12 @@ TEST(HPRingBufferTest, SPSCBlockingCrossThread) {
 **Step 2: Verify all tests pass**
 
 Run:
+
 ```bash
 cd /Users/limkaisheng/Projects/HFT-exchange/external/HFT-sdk
 cmake --build cmake-build-debug -j$(sysctl -n hw.ncpu) && cd cmake-build-debug && ctest --output-on-failure
 ```
+
 Expected: all tests pass.
 
 **Step 3: Commit**
@@ -565,13 +580,16 @@ git commit -m "test: add comprehensive HPRingBuffer tests (basic ops, wraparound
 ## Task 3: Update Internal Consumer (MarketDataEngine)
 
 **Files:**
+
 - Modify: `src/market/market_data_engine.cpp:27,42,51,55`
 
-The `MarketDataEngine` is a same-thread producer/consumer. It uses fire-and-forget `push()` (casting away the bool) and non-blocking drain via `pop()`. Both must switch to `try_push` / `try_pop`.
+The `MarketDataEngine` is a same-thread producer/consumer. It uses fire-and-forget `push()` (casting away the bool) and
+non-blocking drain via `pop()`. Both must switch to `try_push` / `try_pop`.
 
 **Step 1: Update all push calls from `(void)md_queue_->push(msg)` to `(void)md_queue_->try_push(msg)`**
 
 Three call sites:
+
 - Line 27: `(void)md_queue_->push(msg);` → `(void)md_queue_->try_push(msg);`
 - Line 42: `(void)md_queue_->push(msg);` → `(void)md_queue_->try_push(msg);`
 - Line 51: `(void)md_queue_->push(msg);` → `(void)md_queue_->try_push(msg);`
@@ -583,10 +601,12 @@ Three call sites:
 **Step 3: Verify build**
 
 Run:
+
 ```bash
 cd /Users/limkaisheng/Projects/HFT-exchange/external/HFT-sdk
 cmake --build cmake-build-debug -j$(sysctl -n hw.ncpu)
 ```
+
 Expected: clean build. No errors.
 
 **Step 4: Commit**
@@ -601,6 +621,7 @@ git commit -m "refactor: update MarketDataEngine to use try_push/try_pop API"
 ## Task 4: Update Documentation (HPRINGBUFFER.md)
 
 **Files:**
+
 - Modify: `src/HPRINGBUFFER.md` (full rewrite)
 
 **Step 1: Replace entire contents of `src/HPRINGBUFFER.md`**
@@ -608,27 +629,34 @@ git commit -m "refactor: update MarketDataEngine to use try_push/try_pop API"
 ```markdown
 # HPRingBuffer — LMAX Disruptor-Inspired SPSC Ring Buffer
 
-A **lock-free, cache-line-optimized** Single-Producer Single-Consumer (SPSC) ring buffer for C++23, inspired by the [LMAX Disruptor](https://lmax-exchange.github.io/disruptor/) pattern.
+A **lock-free, cache-line-optimized** Single-Producer Single-Consumer (SPSC) ring buffer for C++23, inspired by
+the [LMAX Disruptor](https://lmax-exchange.github.io/disruptor/) pattern.
 
 ## Key Design Decisions
 
 ### Monotonic Sequences (not wrapping indices)
 
-Like the LMAX Disruptor, `write_sequence_` and `read_sequence_` increase monotonically and never wrap. The array index is derived via bitmask: `seq & (Size - 1)`. This makes `size()` branch-free (`write_seq - read_seq`) and eliminates the ambiguity of wrapping head/tail pointers.
+Like the LMAX Disruptor, `write_sequence_` and `read_sequence_` increase monotonically and never wrap. The array index
+is derived via bitmask: `seq & (Size - 1)`. This makes `size()` branch-free (`write_seq - read_seq`) and eliminates the
+ambiguity of wrapping head/tail pointers.
 
 ### Cache-Line Isolation (false-sharing elimination)
 
-The producer's `write_sequence_` and consumer's `read_sequence_` are each aligned to a 64-byte cache line boundary via `alignas(CACHE_LINE_SIZE)`. This prevents false sharing — without padding, both atomics would share a cache line, causing MESI protocol invalidation traffic between cores on every write.
+The producer's `write_sequence_` and consumer's `read_sequence_` are each aligned to a 64-byte cache line boundary via
+`alignas(CACHE_LINE_SIZE)`. This prevents false sharing — without padding, both atomics would share a cache line,
+causing MESI protocol invalidation traffic between cores on every write.
 
 ```
+
 Memory layout:
 ┌─────────────────────────────────────────────────────┐
-│ cache line 0:  write_sequence_ (8B) + 56B padding   │ ← producer-only
+│ cache line 0:  write_sequence_ (8B) + 56B padding │ ← producer-only
 ├─────────────────────────────────────────────────────┤
-│ cache line 1:  read_sequence_  (8B) + 56B padding   │ ← consumer-only
+│ cache line 1:  read_sequence_  (8B) + 56B padding │ ← consumer-only
 ├─────────────────────────────────────────────────────┤
 │ cache line 2+: buffer_[Size]                        │ ← data region
 └─────────────────────────────────────────────────────┘
+
 ```
 
 ### Compile-Time Wait Strategies
@@ -687,11 +715,13 @@ buffer.capacity();  // Size - 1 (one slot reserved)
 
 ## Build
 
-Requires C++23. Header-only — just include `HPRingBuffer.hpp`. Depends on `common/constants.hpp` (for `CACHE_LINE_SIZE`) and `wait_strategies.hpp`.
+Requires C++23. Header-only — just include `HPRingBuffer.hpp`. Depends on `common/constants.hpp` (for `CACHE_LINE_SIZE`)
+and `wait_strategies.hpp`.
 
 ```bash
 g++ -std=c++23 -O3 -o my_app my_app.cpp -I/path/to/HFT-sdk/src -pthread
 ```
+
 ```
 
 **Step 2: Commit**
@@ -710,16 +740,19 @@ git commit -m "docs: rewrite HPRINGBUFFER.md with LMAX-inspired design documenta
 **Step 1: Clean rebuild of the SDK**
 
 Run:
+
 ```bash
 cd /Users/limkaisheng/Projects/HFT-exchange/external/HFT-sdk
 rm -rf cmake-build-debug
 cmake -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug && cmake --build cmake-build-debug -j$(sysctl -n hw.ncpu)
 ```
+
 Expected: clean build, zero warnings related to HPRingBuffer.
 
 **Step 2: Build the parent project (if possible)**
 
 Run:
+
 ```bash
 cd /Users/limkaisheng/Projects/HFT-exchange
 cmake -B build -DCMAKE_BUILD_TYPE=Debug \
@@ -729,6 +762,9 @@ cmake -B build -DCMAKE_BUILD_TYPE=Debug \
   -DCMAKE_PREFIX_PATH=~/.vcpkg-clion/vcpkg/installed/x64-osx
 cmake --build build -j$(sysctl -n hw.ncpu)
 ```
-Expected: build errors in `main.cpp` where the old `push()`/`pop()` API is called. These are **expected** — the parent project (`main.cpp`) is outside the SDK submodule scope and must be updated separately. The compile errors serve as a forcing function to choose `try_push`/`try_pop` vs `push`/`pop` for each call site.
+
+Expected: build errors in `main.cpp` where the old `push()`/`pop()` API is called. These are **expected** — the parent
+project (`main.cpp`) is outside the SDK submodule scope and must be updated separately. The compile errors serve as a
+forcing function to choose `try_push`/`try_pop` vs `push`/`pop` for each call site.
 
 **Step 3: No commit — verification only**

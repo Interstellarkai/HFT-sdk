@@ -7,4 +7,4 @@
 namespace HFT_sdkLib {
 // Anchor translation unit to allow building a static library from headers.
 void library_anchor() {}
-} // namespace HFT_sdkLib
+}  // namespace HFT_sdkLib

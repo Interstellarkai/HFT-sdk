@@ -1,10 +1,15 @@
 # Market Microstructure Components
 
-High-performance C++ implementation of core market microstructure components including a multi-symbol matching engine, trade engine with position tracking, market data aggregation, and order book management. These components provide the foundation for building limit order book simulations and trading systems.
+High-performance C++ implementation of core market microstructure components including a multi-symbol matching engine,
+trade engine with position tracking, market data aggregation, and order book management. These components provide the
+foundation for building limit order book simulations and trading systems.
 
 ## Overview
 
-This directory contains the market engine layer for HFT-sdk. The matching engine coordinates per-symbol L3 order books (from `../orderbook/`), integrates with the risk engine (from `../risk/`), and publishes execution reports, trades, and market data updates. The design prioritizes performance with O(1) order cancellations, efficient matching, and lock-free market data dissemination.
+This directory contains the market engine layer for HFT-sdk. The matching engine coordinates per-symbol L3 order books (
+from `../orderbook/`), integrates with the risk engine (from `../risk/`), and publishes execution reports, trades, and
+market data updates. The design prioritizes performance with O(1) order cancellations, efficient matching, and lock-free
+market data dissemination.
 
 ## Components
 
@@ -12,9 +17,11 @@ This directory contains six main components:
 
 ### 1. matching_engine.h/.cpp — Multi-Symbol Matching Engine
 
-The `MatchingEngine` class is the central coordinator for all order processing. It manages per-symbol state (L3 book + L2 aggregator + L1 feed), routes orders, performs risk checks, and publishes events.
+The `MatchingEngine` class is the central coordinator for all order processing. It manages per-symbol state (L3 book +
+L2 aggregator + L1 feed), routes orders, performs risk checks, and publishes events.
 
 **Key Features:**
+
 - Manages multiple symbols, each with an `L3OrderBook`, `L2Aggregator`, and `L1Feed`
 - O(1) symbol lookup via `unordered_map`
 - O(1) order-to-symbol mapping for cancel routing
@@ -65,9 +72,11 @@ public:
 
 ### 2. trade_engine.h/.cpp — Trade & Position Engine
 
-The `TradeEngine` processes trades, tracks per-trader per-symbol positions, computes realized/unrealized PnL, and supports mark-to-market.
+The `TradeEngine` processes trades, tracks per-trader per-symbol positions, computes realized/unrealized PnL, and
+supports mark-to-market.
 
 **Key Features:**
+
 - Per-trader per-symbol position tracking (`TraderSymbolKey` composite key)
 - Realized PnL computation on position reduction
 - Unrealized PnL via mark-to-market
@@ -95,9 +104,11 @@ public:
 
 ### 3. order_book.h/.cpp — Simple Limit Order Book
 
-A lightweight `OrderBook` with price-time priority matching. This is a simpler alternative to the full `L3OrderBook` (in `../orderbook/`) for basic simulations.
+A lightweight `OrderBook` with price-time priority matching. This is a simpler alternative to the full `L3OrderBook` (in
+`../orderbook/`) for basic simulations.
 
 **Key Features:**
+
 - Separate bid and ask price levels using `std::map` with custom comparators
 - O(1) order cancellation via `unordered_map` index
 - O(log n) order insertion
@@ -126,9 +137,11 @@ public:
 
 ### 4. market_data_engine.h/.cpp — Market Data Engine
 
-The `MarketDataEngine` aggregates market data from the matching engine and publishes it via HPRingBuffer for lock-free cross-thread dissemination. Supports configurable throttling.
+The `MarketDataEngine` aggregates market data from the matching engine and publishes it via HPRingBuffer for lock-free
+cross-thread dissemination. Supports configurable throttling.
 
 **Key Features:**
+
 - Lock-free HPRingBuffer (16K slots) for cross-thread MD messages
 - Per-symbol throttling with configurable interval
 - Supports L1 (TOB), L2 (depth snapshots), and trade events
@@ -161,7 +174,8 @@ public:
 
 ### 5. market_data_publisher.h/.cpp — Callback-Based Market Data Publisher
 
-A lightweight, decoupled publisher that distributes market data via `std::function` callbacks. Used by the matching engine to push updates without tight coupling to subscribers.
+A lightweight, decoupled publisher that distributes market data via `std::function` callbacks. Used by the matching
+engine to push updates without tight coupling to subscribers.
 
 **Public Interface:**
 
@@ -194,17 +208,18 @@ market/
 
 ## Dependencies on Other HFT-sdk Modules
 
-| Dependency | Used By | Purpose |
-|------------|---------|---------|
-| `common/types.h` | All | Core types: Order, Trade, Symbol, enums |
-| `common/clock.h` | MatchingEngine, MarketDataEngine | Timestamps |
-| `common/constants.h` | MarketDataEngine | Default L2 depth, queue sizes |
-| `orderbook/l3_order_book.h` | MatchingEngine | Per-symbol order book |
-| `orderbook/l2_aggregator.h` | MatchingEngine | L2 depth snapshots |
-| `orderbook/l1_feed.h` | MatchingEngine | TOB, microprice, VWAP |
-| `risk/risk_engine.h` | MatchingEngine | Pre-trade risk checks |
-| `HPRingBuffer.hpp` | MarketDataEngine | Lock-free MD message queue |
-| `ScopeTimer.hpp` | MatchingEngine | Performance instrumentation |
+| Dependency                  | Used By                          | Purpose                                 |
+|-----------------------------|----------------------------------|-----------------------------------------|
+| `common/types.h`            | All                              | Core types: Order, Trade, Symbol, enums |
+| `common/clock.h`            | MatchingEngine, MarketDataEngine | Timestamps                              |
+| `common/constants.h`        | MarketDataEngine                 | Default L2 depth, queue sizes           |
+| `orderbook/l3_order_book.h` | MatchingEngine                   | Per-symbol order book                   |
+| `orderbook/l2_aggregator.h` | MatchingEngine                   | L2 depth snapshots                      |
+| `orderbook/l1_feed.h`       | MatchingEngine                   | TOB, microprice, VWAP                   |
+| `risk/risk_engine.h`        | MatchingEngine                   | Pre-trade risk checks                   |
+| `HPRingBuffer.hpp`          | MarketDataEngine                 | Lock-free MD message queue              |
+| `ScopeTimer.hpp`            | MatchingEngine                   | Performance instrumentation             |
+
 ## Usage Examples
 
 ### Matching Engine with L3 Book
@@ -342,28 +357,28 @@ int main() {
 Orders are matched according to **price-time priority** in the L3 order book:
 
 1. **Price Priority**: Better prices match first
-   - For bids: Higher prices have priority
-   - For asks: Lower prices have priority
+    - For bids: Higher prices have priority
+    - For asks: Lower prices have priority
 
 2. **Time Priority**: At the same price level, earlier orders match first
-   - Orders are stored in a queue (`std::list`) per price level
-   - First-in-first-out (FIFO) within each price level
+    - Orders are stored in a queue (`std::list`) per price level
+    - First-in-first-out (FIFO) within each price level
 
 ### Order Types
 
-| Type | Behavior |
-|------|----------|
-| **Limit** | Match at specified price or better; remainder rests on the book |
-| **Market** | Match at best available prices; walk the book until filled |
+| Type       | Behavior                                                        |
+|------------|-----------------------------------------------------------------|
+| **Limit**  | Match at specified price or better; remainder rests on the book |
+| **Market** | Match at best available prices; walk the book until filled      |
 
 ### Time-in-Force
 
-| TIF | Behavior |
-|-----|----------|
-| **Day** | Remains active until filled or cancelled |
-| **GTC** | Good-til-Cancel; persists across sessions |
+| TIF     | Behavior                                         |
+|---------|--------------------------------------------------|
+| **Day** | Remains active until filled or cancelled         |
+| **GTC** | Good-til-Cancel; persists across sessions        |
 | **IOC** | Execute immediately; cancel any unfilled portion |
-| **FOK** | Fill entire quantity or reject completely |
+| **FOK** | Fill entire quantity or reject completely        |
 
 ### Advanced Features
 
@@ -376,16 +391,16 @@ Orders are matched according to **price-time priority** in the L3 order book:
 
 ### Complexity Analysis
 
-| Operation | Complexity | Component |
-|-----------|------------|-----------|
-| `add_order()` | O(log n) + O(k) matching | L3OrderBook |
-| `cancel_order()` | O(1) | L3OrderBook |
-| `best_bid()`/`best_ask()` | O(1) | L3OrderBook |
-| `bid_depth(d)`/`ask_depth(d)` | O(d) | L3OrderBook |
-| `process_new_order()` | O(1) routing + book op | MatchingEngine |
-| `process_cancel()` | O(1) routing + O(1) cancel | MatchingEngine |
-| `process_trade()` | O(1) | TradeEngine |
-| `on_tob_update()` | O(1) | MarketDataEngine |
+| Operation                     | Complexity                 | Component        |
+|-------------------------------|----------------------------|------------------|
+| `add_order()`                 | O(log n) + O(k) matching   | L3OrderBook      |
+| `cancel_order()`              | O(1)                       | L3OrderBook      |
+| `best_bid()`/`best_ask()`     | O(1)                       | L3OrderBook      |
+| `bid_depth(d)`/`ask_depth(d)` | O(d)                       | L3OrderBook      |
+| `process_new_order()`         | O(1) routing + book op     | MatchingEngine   |
+| `process_cancel()`            | O(1) routing + O(1) cancel | MatchingEngine   |
+| `process_trade()`             | O(1)                       | TradeEngine      |
+| `on_tob_update()`             | O(1)                       | MarketDataEngine |
 
 ### Performance Optimizations
 
@@ -449,12 +464,12 @@ engine.on_execution([&telemetry](const ExecutionReport& rpt) {
 
 ### Recommended Threading Model
 
-| Thread | Component | Queue |
-|--------|-----------|-------|
-| T1 | MatchingEngine + L3OrderBook | Reads from Order Queue |
-| T2 | Simulation / FIX Gateway | Writes to Order Queue |
-| T3 | MarketDataEngine | Reads from MD Queue |
-| T4 | Telemetry | Read-only metrics access |
+| Thread | Component                    | Queue                    |
+|--------|------------------------------|--------------------------|
+| T1     | MatchingEngine + L3OrderBook | Reads from Order Queue   |
+| T2     | Simulation / FIX Gateway     | Writes to Order Queue    |
+| T3     | MarketDataEngine             | Reads from MD Queue      |
+| T4     | Telemetry                    | Read-only metrics access |
 
 ## License
 

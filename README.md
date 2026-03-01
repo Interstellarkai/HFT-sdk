@@ -1,26 +1,28 @@
 # HFT-sdk
 
-A comprehensive C++23 toolkit for high-frequency trading systems and low-latency exchange simulation. Provides production-grade building blocks from lock-free data structures to a full matching engine.
+A comprehensive C++23 toolkit for high-frequency trading systems and low-latency exchange simulation. Provides
+production-grade building blocks from lock-free data structures to a full matching engine.
 
 ## Modules
 
-| Module | Directory | Description |
-|--------|-----------|-------------|
-| **HPRingBuffer** | `src/HPRingBuffer.hpp` | Lock-free SPSC ring buffer with power-of-2 sizing |
-| **Benchmark P99** | `src/benchmark_p99.hpp` | P99/P99.9 latency benchmarking for callables |
-| **ScopeTimer** | `src/ScopeTimer.hpp` | RAII scope timers with compile-time disable |
-| **Common** | `src/common/` | Core types, constants, clock, and memory pool |
-| **Order Book** | `src/orderbook/` | L3 order book, L2 aggregator, L1 feed |
-| **Market** | `src/market/` | Matching engine, trade engine, market data publisher/engine |
-| **Latency** | `src/latency/` | Gaussian + heavy-tail latency model with per-client profiles |
-| **Risk** | `src/risk/` | Position limits, rate limits, kill switch, pre-trade checks |
-| **Metrics** | `src/metrics/` | Latency histograms, telemetry dashboard, ScopeTimer integration |
+| Module            | Directory               | Description                                                     |
+|-------------------|-------------------------|-----------------------------------------------------------------|
+| **HPRingBuffer**  | `src/HPRingBuffer.hpp`  | Lock-free SPSC ring buffer with power-of-2 sizing               |
+| **Benchmark P99** | `src/benchmark_p99.hpp` | P99/P99.9 latency benchmarking for callables                    |
+| **ScopeTimer**    | `src/ScopeTimer.hpp`    | RAII scope timers with compile-time disable                     |
+| **Common**        | `src/common/`           | Core types, constants, clock, and memory pool                   |
+| **Order Book**    | `src/orderbook/`        | L3 order book, L2 aggregator, L1 feed                           |
+| **Market**        | `src/market/`           | Matching engine, trade engine, market data publisher/engine     |
+| **Latency**       | `src/latency/`          | Gaussian + heavy-tail latency model with per-client profiles    |
+| **Risk**          | `src/risk/`             | Position limits, rate limits, kill switch, pre-trade checks     |
+| **Metrics**       | `src/metrics/`          | Latency histograms, telemetry dashboard, ScopeTimer integration |
 
 > Status: This library is under active development; new tools will be added over time.
 
 ## Overview
 
-HFT-sdk is a collection of zero-overhead C++23 abstractions designed for high-frequency trading systems and low-latency applications. The library focuses on:
+HFT-sdk is a collection of zero-overhead C++23 abstractions designed for high-frequency trading systems and low-latency
+applications. The library focuses on:
 
 - **Lock-free data structures** — SPSC ring buffer for inter-thread communication
 - **Performance measurement** — P99/P99.9 latency tracking, RAII scope timers, latency histograms
@@ -234,7 +236,8 @@ telemetry.record_matching_latency(450);  // 450 ns
 telemetry.print_dashboard();             // formatted console output
 ```
 
-See `examples/p99_example.hpp` for a full benchmarking snippet and `src/market/README.md` for detailed market component documentation.
+See `examples/p99_example.hpp` for a full benchmarking snippet and `src/market/README.md` for detailed market component
+documentation.
 
 ## License
 

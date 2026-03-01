@@ -6,7 +6,7 @@
 // ============================================================================
 
 #include <chrono>
-#include <print>    // C++23: std::print / std::println
+#include <print>  // C++23: std::print / std::println
 
 // Optional compile-time switch to disable all timing with zero runtime cost
 #ifndef SCOPE_TIMER_DISABLED
@@ -19,169 +19,152 @@
 #define SCOPE_TIMER_MAX_SLOTS 32
 #endif
 
-template<class T>
-class ScopeTimer final { // final prevents inheritance / overriding
-public:
-    using Clock     = std::chrono::steady_clock;
-    using TimePoint = Clock::time_point;
-    using Duration  = Clock::duration;
+template <class T>
+class ScopeTimer final {  // final prevents inheritance / overriding
+ public:
+  using Clock = std::chrono::steady_clock;
+  using TimePoint = Clock::time_point;
+  using Duration = Clock::duration;
 
-    bool InUse{false};
+  bool InUse{false};
 
-public:
-    ScopeTimer(bool raii = false)
-    {
+ public:
+  ScopeTimer(bool raii = false) {
 #if !SCOPE_TIMER_DISABLED
 #if OS_WINDOWS
-        std::locale::global(std::locale("en_US.utf8")); // set locale (platform dependent)
+    std::locale::global(
+        std::locale("en_US.utf8"));  // set locale (platform dependent)
 #endif
-        if(raii)
-        {
-            start();
-        }
-#endif
+    if (raii) {
+      start();
     }
+#endif
+  }
 
-    ~ScopeTimer()
-    {
+  ~ScopeTimer() {
 #if !SCOPE_TIMER_DISABLED
-        if(InUse)
-        {
-            endAndLog();
-        }
-#endif
+    if (InUse) {
+      endAndLog();
     }
+#endif
+  }
 
-    // Start a timer associated with this label.
-    // Overwrites any existing timer with the same label in this thread.
-    void start() noexcept
-    {
+  // Start a timer associated with this label.
+  // Overwrites any existing timer with the same label in this thread.
+  void start() noexcept {
 #if !SCOPE_TIMER_DISABLED
-        InUse = true;
-        beginTime_ = Clock::now();
+    InUse = true;
+    beginTime_ = Clock::now();
 #endif
-    }
+  }
 
-    // End timer, return elapsed time in nanoseconds.
-    // Returns 0 if label not found.
-    [[nodiscard]] Duration end() noexcept
-    {
+  // End timer, return elapsed time in nanoseconds.
+  // Returns 0 if label not found.
+  [[nodiscard]] Duration end() noexcept {
 #if !SCOPE_TIMER_DISABLED
-        InUse = false;
-        auto current = Clock::now();
-        auto duration = (current - beginTime_);
+    InUse = false;
+    auto current = Clock::now();
+    auto duration = (current - beginTime_);
 
-        return duration;
+    return duration;
 #endif
-    }
+  }
 
-    // End timer, log, and return elapsed time in nanoseconds.
-    void endAndLog() noexcept
-    {
+  // End timer, log, and return elapsed time in nanoseconds.
+  void endAndLog() noexcept {
 #if !SCOPE_TIMER_DISABLED
-        log_(end());
+    log_(end());
 #endif
-    }
+  }
 
-private:
-    void log_(Duration duration)
-    {
-        using namespace std::chrono;
+ private:
+  void log_(Duration duration) {
+    using namespace std::chrono;
 
-        auto units = std::chrono::duration_cast<T>(duration);
+    auto units = std::chrono::duration_cast<T>(duration);
 
-        std::println("[ScopeTimer] took {:L}", units);
-    }
+    std::println("[ScopeTimer] took {:L}", units);
+  }
 
-    TimePoint beginTime_;
+  TimePoint beginTime_;
 };
 
-template<class T>
-class ScopeTimerManagement{
-public:
-    using Timer    = ScopeTimer<T>;
-    using Duration = typename Timer::Duration;
-    using ScopeTimerPtr = std::unique_ptr<ScopeTimer<T>>;
+template <class T>
+class ScopeTimerManagement {
+ public:
+  using Timer = ScopeTimer<T>;
+  using Duration = typename Timer::Duration;
+  using ScopeTimerPtr = std::unique_ptr<ScopeTimer<T>>;
 
-public:
-    static void start(std::string_view label)
-    {
+ public:
+  static void start(std::string_view label) {
 #if !SCOPE_TIMER_DISABLED
-        auto& slots = slots_;
-        for(auto& item : slots)
-        {
-            if(!item.used)
-            {
-                item.label = label;
-                item.used  = true;
-                item.scopeTimer.start();
+    auto& slots = slots_;
+    for (auto& item : slots) {
+      if (!item.used) {
+        item.label = label;
+        item.used = true;
+        item.scopeTimer.start();
 
-                return;
-            }
-        }
-#endif
+        return;
+      }
     }
+#endif
+  }
 
-    [[nodiscard]] static Duration end(std::string_view label)
-    {
+  [[nodiscard]] static Duration end(std::string_view label) {
 #if !SCOPE_TIMER_DISABLED
-        auto& slots = slots_;
-        for(auto& item : slots)
-        {
-            if(item.used && item.label == label)
-            {
-                item.used = false;
-                return item.scopeTimer.end();
-            }
-        }
+    auto& slots = slots_;
+    for (auto& item : slots) {
+      if (item.used && item.label == label) {
+        item.used = false;
+        return item.scopeTimer.end();
+      }
+    }
 #else
-        return Duration::zero();
+    return Duration::zero();
 #endif
-    }
+  }
 
-    static void endAndLog(std::string_view label)
-    {
+  static void endAndLog(std::string_view label) {
 #if !SCOPE_TIMER_DISABLED
-        auto& slots = slots_;
-        for(auto& item : slots)
-        {
-            if(item.label == label)
-            {
-                // item.used = false;
-                auto d = item.scopeTimer.end();
-                log_(d, item.label);
+    auto& slots = slots_;
+    for (auto& item : slots) {
+      if (item.label == label) {
+        // item.used = false;
+        auto d = item.scopeTimer.end();
+        log_(d, item.label);
 
-                return;
-            }
-        }
+        return;
+      }
+    }
 #endif
-    }
+  }
 
-private:
-    static void log_(Duration duration, std::string_view label)
-    {
-        using namespace std::chrono;
+ private:
+  static void log_(Duration duration, std::string_view label) {
+    using namespace std::chrono;
 
-        auto units = std::chrono::duration_cast<T>(duration);
+    auto units = std::chrono::duration_cast<T>(duration);
 
-        std::println("[ScopeTimer] {} took {:L}", label, units);
-    }
+    std::println("[ScopeTimer] {} took {:L}", label, units);
+  }
 
-    struct Slot {
-        std::string_view label{};
-        ScopeTimer<T>    scopeTimer{};
-        bool             used{false};
-    };
+  struct Slot {
+    std::string_view label{};
+    ScopeTimer<T> scopeTimer{};
+    bool used{false};
+  };
 
-    /*
-     * SCOPE_TIMER_MAX_SLOTS : concurrent timer for call stack
-     * thread_local : each thread gets its own independent array to prevent shared state
-     * static: class member, not a local variable. one per program / thead if thread local
-     * inline: definition lives in header included by many .cpp file
-     */
-    // One small array of slots per thread, no mutex, no heap.
-    static thread_local inline Slot slots_[SCOPE_TIMER_MAX_SLOTS];
+  /*
+   * SCOPE_TIMER_MAX_SLOTS : concurrent timer for call stack
+   * thread_local : each thread gets its own independent array to prevent shared
+   * state static: class member, not a local variable. one per program / thead
+   * if thread local inline: definition lives in header included by many .cpp
+   * file
+   */
+  // One small array of slots per thread, no mutex, no heap.
+  static thread_local inline Slot slots_[SCOPE_TIMER_MAX_SLOTS];
 };
-
 
 using NScopeTimers = ScopeTimerManagement<std::chrono::nanoseconds>;
