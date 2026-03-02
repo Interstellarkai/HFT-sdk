@@ -193,10 +193,10 @@ struct BookOrder {
   Quantity qty;
   Price price;
   Side side;
-  OrderType type;       // Added for matching logic
-  std::uint64_t ts_ns;  // arrival time, for time priority
+  OrderType type;   // Added for matching logic
+  Timestamp ts_ns;  // arrival time, for time priority
 
-  BookOrder(const NewOrder &o, std::uint64_t ts_ns) {
+  BookOrder(const NewOrder &o, const Timestamp ts_ns) {
     this->id = o.id;
     this->trader = o.trader;
     this->qty = o.qty;
@@ -209,6 +209,9 @@ struct BookOrder {
 
 // ── Trade / Execution structures ───────────────────────────────────────────
 
+/* FIX-style ExecutionReport
+ * what exchanges send back to clients after
+ */
 struct ExecutionReport {
   OrderId order_id = INVALID_ORDER_ID;
   TraderId trader_id = 0;
@@ -216,12 +219,12 @@ struct ExecutionReport {
   Side side = Side::Buy;
   OrderType type = OrderType::Limit;
   OrderStatus status = OrderStatus::New;
-  Price price = 0;
-  Quantity order_qty = 0;
-  Quantity filled_qty = 0;
-  Quantity last_qty = 0;
-  Price last_price = 0;
-  Quantity leaves_qty = 0;
+  Price price = 0;          // order's limit price
+  Quantity order_qty = 0;   // original quantity
+  Quantity filled_qty = 0;  // cumulative filled
+  Quantity last_qty = 0;    // quantity filled in this specific execution
+  Price last_price = 0;     // price of this execution
+  Quantity leaves_qty = 0;  // remaining quantity
   Timestamp transact_time = 0;
   RejectReason reject_reason = RejectReason::None;
   char cl_ord_id[20] = {};
@@ -232,6 +235,9 @@ struct ExecutionReport {
 
 static constexpr std::size_t MAX_DEPTH_LEVELS = 20;
 
+/* L2 market data snapshot
+ - To publish externally to clients to reconstruct book, before asking for delta
+ */
 struct DepthSnapshot {
   Symbol symbol;
   std::array<BookLevel, MAX_DEPTH_LEVELS> bids;
@@ -246,17 +252,17 @@ enum class EventType : std::uint8_t {
   NewOrder = 0,
   CancelOrder = 1,
   ReplaceOrder = 2,
-  ExecutionRpt = 3,
-  TradeEvent = 4,
-  L1Update = 5,
-  L2Update = 6,
-  L3Update = 7,
-  SimTick = 8,
-  Shutdown = 255
+  ExecutionRpt = 3,  // execution report
+  TradeEvent = 4,    // internal match record
+  L1Update = 5,      // top of book feed
+  L2Update = 6,      // depth feed
+  L3Update = 7,      // full order book feed
+  SimTick = 8,       // replay engine (simulation)
+  Shutdown = 255     // system termination (control)
 };
 
 struct alignas(64) EngineEvent {
-  EventType type = EventType::NewOrder;
+  EventType type = EventType::NewOrder;  // message envelope tag
 
   union {
     Order order;
@@ -274,11 +280,11 @@ struct alignas(64) EngineEvent {
 
   ~EngineEvent() = default;
 
-  EngineEvent(const EngineEvent &o) {
+  EngineEvent(const EngineEvent &o) {  // copy constructor
     std::memcpy(this, &o, sizeof(EngineEvent));
   }
 
-  EngineEvent &operator=(const EngineEvent &o) {
+  EngineEvent &operator=(const EngineEvent &o) {  // copy assignment
     if (this != &o) std::memcpy(this, &o, sizeof(EngineEvent));
     return *this;
   }

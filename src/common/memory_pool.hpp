@@ -25,7 +25,7 @@ class MemoryPool {
                 "T must be destructible");
 
   struct alignas(64) Slot {
-    alignas(alignof(T)) std::uint8_t storage[sizeof(T)];
+    alignas(alignof(T)) std::byte storage[sizeof(T)];
     std::uint32_t next_free;
     bool in_use;
   };
@@ -75,11 +75,15 @@ class MemoryPool {
   /// Deallocate a previously allocated object.
   void deallocate(T* ptr) {
     if (!ptr) return;
-    auto* raw = reinterpret_cast<std::uint8_t*>(ptr);
+
     // Find the slot index
+    // offset = (byte address of ptr) − (byte address of slots_[0])
+    // idx    = offset / sizeof(Slot)
+    auto* raw = reinterpret_cast<std::byte*>(ptr);
     std::size_t offset = static_cast<std::size_t>(
-        raw - reinterpret_cast<std::uint8_t*>(&slots_[0]));
+        raw - reinterpret_cast<std::byte*>(&slots_[0]));
     std::size_t idx = offset / sizeof(Slot);
+
     assert(idx < Capacity && "pointer does not belong to this pool");
     assert(slots_[idx].in_use && "double-free detected");
 

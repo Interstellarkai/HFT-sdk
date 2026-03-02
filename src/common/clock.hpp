@@ -43,7 +43,7 @@ class Clock {
 
  private:
   Mode mode_;
-  alignas(64) std::atomic<Timestamp> simulated_time_{0};
+  std::atomic<Timestamp> simulated_time_{0};
 };
 
 }  // namespace HFT_sdk
