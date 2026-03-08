@@ -24,7 +24,7 @@ struct LatencyStats {
 
 namespace detail {
 
-// Clamp index to [0, size - 1]
+// Guard against unsigned integer underflow
 constexpr std::size_t clamp_index(std::size_t idx, std::size_t size) noexcept {
   if (idx >= size) [[unlikely]] {
     return size ? (size - 1) : 0;
