@@ -72,8 +72,8 @@ asks_  (std::map, ascending — lowest ask first)
 Price 10060  →  [OrderQueue]
                   ┌──────────────────────────────────────────────────┐
                   │ L3Order { id=200, visible_qty=300, queue_pos=0 } │  ← best ask, fills first
-                  │ L3Order { id=207, visible_qty=100,              │
-                  │           hidden_qty=900, is_iceberg=true,      │
+                  │ L3Order { id=207, visible_qty=100,               │
+                  │           hidden_qty=900, is_iceberg=true,       │
                   │           queue_pos=1                  }         │
                   └──────────────────────────────────────────────────┘
 Price 10070  →  [OrderQueue]
@@ -147,6 +147,22 @@ using AskPriceLevels =
 
 Both maps use `begin()` as the "best price" for their side. That lets the
 matching loop always start at `levels.begin()` without any special-casing.
+
+#### Query helpers — `best_level<PriceLevels>()` / `depth<PriceLevels>()`
+
+```cpp
+template <typename PriceLevels>
+std::optional<BookLevel> best_level(const PriceLevels& levels) const;
+
+template <typename PriceLevels>
+std::vector<BookLevel> depth(const PriceLevels& levels, std::size_t n) const;
+```
+
+`best_bid` / `best_ask` and `bid_depth` / `ask_depth` are symmetric: identical logic
+over different map types. These private template helpers eliminate the duplication. As
+with `match_against`, the template bodies live in `.cpp` with explicit instantiations —
+one for `BidPriceLevels`, one for `AskPriceLevels`. No header bloat, no compile-time
+cost for consumers of the header.
 
 ### 4.3 `order_index_` — the iterator trick that makes cancel O(1)
 
@@ -290,12 +306,18 @@ Inside the inner loop, after reducing the resting order's quantity:
 ```cpp
 // Iceberg replenishment
 if (resting.visible_qty == 0 && resting.hidden_qty > 0 &&
-    resting.is_iceberg) {
-    Quantity replenish =
-        std::min(resting.hidden_qty, static_cast<Quantity>(100));
-    // <- replenish up to 100 units from the hidden reserve
-    resting.visible_qty = replenish;
-    resting.hidden_qty -= replenish;
+    resting.is_iceberg)
+    replenish_iceberg(resting);  // <- extracted helper; replenishes up to 100 units
+```
+
+Where `replenish_iceberg` is the private static helper:
+
+```cpp
+static void replenish_iceberg(L3Order& o) {
+    const Quantity replenish =
+        std::min(o.hidden_qty, static_cast<Quantity>(100));
+    o.visible_qty = replenish;
+    o.hidden_qty -= replenish;
 }
 ```
 
@@ -446,6 +468,27 @@ Explicit instantiation in the `.cpp` file keeps the template body out of the
 header, reducing compile times for translation units that include
 `l3_order_book.hpp` without needing to see the implementation.
 
+### Why `update_queue_positions` short-circuits when the level becomes empty
+
+After erasing the last order from a price level, the previous implementation called
+`update_queue_positions(Side, Price)` — an O(n) queue scan — before immediately
+erasing the now-empty level anyway. The reindex was wasted work on every single-order
+cancel.
+
+The refactored `remove_from_level` short-circuits this:
+
+```cpp
+queue.erase(it);
+if (queue.empty())
+    levels.erase(level_it);           // level gone — skip O(n) reindex
+else
+    update_queue_positions(queue);    // O(n) only when level survives
+```
+
+For the common cancel case where the order is the only one at its price (typical in
+sparse HFT books where market makers cancel and re-quote frequently), this changes
+cancel from O(n) to O(1).
+
 ---
 
 ## 7. What to Read Next
@@ -457,3 +500,49 @@ header, reducing compile times for translation units that include
   `L3OrderBook` per symbol, integrates the `RiskEngine` for pre-trade checks,
   drives the simulation clock, and publishes `EngineEvent` structs onto the
   `HPRingBuffer` queues that connect all six threads in the system.
+
+---
+
+## 8. Future Enhancement: Pool Allocator for `OrderQueue`
+
+> **Status: Deferred.** Approach C from the refactor design. See
+> `docs/plans/2026-03-08-l3-orderbook-refactor-design.md` for rationale.
+
+### The problem
+
+`std::list<L3Order>` allocates each node on the heap separately. During the matching
+inner loop, walking a price level's queue dereferences heap pointers scattered across
+RAM — one cache miss per order visited. For queues with many orders at the same price,
+this is the dominant latency cost of matching.
+
+### The fix
+
+```cpp
+// Current
+using OrderQueue = std::list<L3Order>;
+
+// Approach C
+using OrderQueue = std::list<L3Order, PoolAllocator<L3Order>>;
+```
+
+`PoolAllocator<L3Order>` (backed by `src/common/memory_pool.hpp`, already in HFT-sdk)
+pre-allocates a contiguous slab of `L3Order`-sized slots. All list nodes are drawn from
+this slab, making sequential list traversal cache-friendly.
+
+### Why it's safe with `order_index_`
+
+`std::list` stores each node as a separate heap object. The pool allocator does not
+change this — it sources those objects from a pre-reserved slab rather than the general
+allocator. Pool node addresses are **stable** (the pool never relocates nodes), so
+`OrderQueue::iterator` values stored in `order_index_` remain valid exactly as they do
+today. The O(1) cancel guarantee is preserved.
+
+### Why it's deferred
+
+- **Pool sizing** must be chosen at construction time. Undersized pools exhaust;
+  oversized pools waste memory. Right-sizing requires profiling real order flow.
+- **Allocator propagation** through `std::list` move/swap has subtle correctness
+  requirements (`std::allocator_traits::propagate_on_container_move_assignment`).
+- **Expected benefit:** ~20–40% reduction in matching loop latency for deep queues
+  (>10 orders at a price level). Minimal benefit for sparse books (1–3 orders per
+  level), which is the common HFT market-making case.
