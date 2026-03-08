@@ -7,20 +7,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Prerequisites: CMake ≥ 3.20, GCC 13+, Clang 17+, or MSVC 2022+ (C++23 required).
 
 ```bash
-mkdir -p build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build .
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j$(sysctl -n hw.ncpu)   # macOS
+cmake --build build -j$(nproc)               # Linux
 ```
 
 The static library target is `HFT-sdk` (CMake alias `HFT::sdk`). All public headers live under `src/`; consumers include
 via `target_include_directories` pointing at `src/`.
 
+## Tests
+
+Google Test, fetched automatically by CMake (enabled by default; `-DHFT_SDK_BUILD_TESTS=OFF` to skip).
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build -j$(sysctl -n hw.ncpu)
+./build/hft_sdk_tests                                # all suites
+./build/hft_sdk_tests --gtest_filter="L3BookTest.*"  # one suite
+```
+
 ## Architecture
 
-This is a **header-heavy static library** — most modules are split into `.h`/`.cpp` pairs but the core data structures (
+This is a **header-heavy static library** — most modules are split into `.hpp`/`.cpp` pairs but the core data structures (
 `HPRingBuffer`, `ScopeTimer`, `benchmark_p99`, `memory_pool`) are header-only.
 
-All types live in namespace `HFT_sdk`. The entry point for the type system is `src/common/types.h`.
+All types live in namespace `HFT_sdk`. The entry point for the type system is `src/common/types.hpp`.
 
 ### Module Dependency Graph
 
@@ -48,7 +59,7 @@ metrics/telemetry  ←  integrates ScopeTimer + latency_histogram
 latency/latency_model  ←  Gaussian + heavy-tail latency simulation
 ```
 
-### Core Types (`src/common/types.h`)
+### Core Types (`src/common/types.hpp`)
 
 - `Price = int64_t` — prices in integer ticks (10000 = 100.00 with 2 dp)
 - `Symbol` — 8-byte stack-allocated fixed string (max 8 chars, truncates silently); hash via `SymbolHash`
@@ -71,17 +82,21 @@ queues).
 
 ### Key Design Decisions
 
+- **Header extensions are `.hpp`** — all files under `src/` use `.hpp`, not `.h`. The module graph above uses `.h` for brevity only.
 - **O(1) cancel** — `L3OrderBook` keeps an `unordered_map<OrderId, OrderLocation>` storing a `std::list::iterator` per
   order, enabling O(1) removal without scanning price levels.
-- **Two order book choices** — `market/order_book.h` is a lightweight `std::map`-based book for simple use cases;
-  `orderbook/l3_order_book.h` is the full L3 book (iceberg, queue position, FOK/IOC). `MatchingEngine` always uses the
+- **Two order book choices** — `market/order_book.hpp` is a lightweight `std::map`-based book for simple use cases;
+  `orderbook/l3_order_book.hpp` is the full L3 book (iceberg, queue position, FOK/IOC). `MatchingEngine` always uses the
   L3 book.
-- **Compile-time constants** — all buffer/pool sizes are in `src/common/constants.h` (e.g., `ORDER_QUEUE_SIZE = 16384`,
+- **Compile-time constants** — all buffer/pool sizes are in `src/common/constants.hpp` (e.g., `ORDER_QUEUE_SIZE = 16384`,
   `ORDER_POOL_SIZE = 500000`).
 - **`Clock` abstraction** — `Clock::Mode::Simulated` allows deterministic replay; `Clock::Mode::WallClock` uses
   `std::chrono::steady_clock`. Must be passed to `MatchingEngine`, `MarketDataEngine`, and `Telemetry`.
 - **`EngineEvent` uses `memcpy` for copy/assign** — the union contains non-trivially-copyable members; the class
   overrides copy constructor and assignment with `std::memcpy` for fixed-size performance.
+- **Template helpers use explicit instantiation in `.cpp`** — `match_against`, `best_level`, `depth`, `remove_from_level` are declared in `.hpp` and defined + explicitly instantiated in `.cpp`. Follow this pattern for any new template member of `L3OrderBook`.
+- **Iceberg orders not submittable via public API** — `add_resting_order` hardcodes `is_iceberg=false`; replenishment logic in `match_against` works, only the submission path is incomplete.
+- **Pre-existing warning** — `-Wunused-result` in `matching_engine.cpp`; not introduced by recent refactor work, safe to ignore.
 
 ### Risk Engine Integration
 
