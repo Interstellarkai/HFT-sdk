@@ -63,6 +63,7 @@ if (HFT_SDK_BUILD_TESTS)
 
     add_executable(hft_sdk_tests
             tests/test_hpringbuffer.cpp
+            tests/test_l3_order_book.cpp
     )
 
     target_link_libraries(hft_sdk_tests
