@@ -171,8 +171,8 @@ class L3OrderBook {
       const PriceLevels& levels) const;
 
   template <typename PriceLevels>
-  [[nodiscard]] std::vector<HFT_sdk::BookLevel> depth(
-      const PriceLevels& levels, std::size_t n) const;
+  [[nodiscard]] std::vector<HFT_sdk::BookLevel> depth(const PriceLevels& levels,
+                                                      std::size_t n) const;
   // ── Counters ───────────────────────────────────────────────────────
   std::uint64_t trade_count_ = 0;
   std::uint64_t next_trade_id_ = 1;

@@ -198,7 +198,8 @@ void L3OrderBook::match_against(PriceLevels& levels, const Order& incoming,
     auto order_it = queue.begin();
     while (remaining > 0 && order_it != queue.end()) {
       auto& resting = *order_it;
-      const Quantity resting_available = resting.visible_qty + resting.hidden_qty;
+      const Quantity resting_available =
+          resting.visible_qty + resting.hidden_qty;
       const Quantity match_qty = std::min(remaining, resting_available);
 
       // Create trade
@@ -303,9 +304,10 @@ void L3OrderBook::remove_from_level(PriceLevels& levels, Price price,
   if (level_it != levels.end()) {
     level_it->second.erase(it);
     if (level_it->second.empty())
-      levels.erase(level_it);           // level gone — skip O(n) reindex
+      levels.erase(level_it);  // level gone — skip O(n) reindex
     else
-      update_queue_positions(level_it->second);  // O(n) only when level survives
+      update_queue_positions(
+          level_it->second);  // O(n) only when level survives
   }
   --order_count;
 }
@@ -420,8 +422,8 @@ std::optional<BookLevel> L3OrderBook::best_level(
 }
 
 template <typename PriceLevels>
-std::vector<BookLevel> L3OrderBook::depth(
-    const PriceLevels& levels, std::size_t n) const {
+std::vector<BookLevel> L3OrderBook::depth(const PriceLevels& levels,
+                                          std::size_t n) const {
   std::vector<BookLevel> result;
   result.reserve(n);
   std::size_t i = 0;
@@ -440,8 +442,7 @@ std::vector<BookLevel> L3OrderBook::depth(
 }
 
 void L3OrderBook::replenish_iceberg(L3Order& o) {
-  const Quantity replenish =
-      std::min(o.hidden_qty, static_cast<Quantity>(100));
+  const Quantity replenish = std::min(o.hidden_qty, static_cast<Quantity>(100));
   o.visible_qty = replenish;
   o.hidden_qty -= replenish;
 }
@@ -455,15 +456,11 @@ template void L3OrderBook::match_against<L3OrderBook::BidPriceLevels>(
     BidPriceLevels&, const Order&, Quantity&, std::vector<Trade>&, Timestamp);
 template void L3OrderBook::match_against<L3OrderBook::AskPriceLevels>(
     AskPriceLevels&, const Order&, Quantity&, std::vector<Trade>&, Timestamp);
-template std::optional<BookLevel>
-    L3OrderBook::best_level<L3OrderBook::BidPriceLevels>(
-        const BidPriceLevels&) const;
-template std::optional<BookLevel>
-    L3OrderBook::best_level<L3OrderBook::AskPriceLevels>(
-        const AskPriceLevels&) const;
-template std::vector<BookLevel>
-    L3OrderBook::depth<L3OrderBook::BidPriceLevels>(
-        const BidPriceLevels&, std::size_t) const;
-template std::vector<BookLevel>
-    L3OrderBook::depth<L3OrderBook::AskPriceLevels>(
-        const AskPriceLevels&, std::size_t) const;
+template std::optional<BookLevel> L3OrderBook::best_level<
+    L3OrderBook::BidPriceLevels>(const BidPriceLevels&) const;
+template std::optional<BookLevel> L3OrderBook::best_level<
+    L3OrderBook::AskPriceLevels>(const AskPriceLevels&) const;
+template std::vector<BookLevel> L3OrderBook::depth<L3OrderBook::BidPriceLevels>(
+    const BidPriceLevels&, std::size_t) const;
+template std::vector<BookLevel> L3OrderBook::depth<L3OrderBook::AskPriceLevels>(
+    const AskPriceLevels&, std::size_t) const;

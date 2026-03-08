@@ -228,10 +228,10 @@ exists before touching any order state:
 if (order.tif == TimeInForce::FOK) {
     Quantity available = 0;
     if (order.side == Side::Buy) {
-        for (auto& [price, queue] : asks_) {
+        for (const auto& [price, queue] : asks_) {
             if (order.type == OrderType::Limit && price > order.price) break;
             // <- stop scanning when ask prices exceed the limit price
-            for (auto& o : queue) available += o.visible_qty + o.hidden_qty;
+            for (const auto& o : queue) available += o.visible_qty + o.hidden_qty;
             if (available >= order.quantity) break;
         }
     }
@@ -265,7 +265,7 @@ void L3OrderBook::match_against(PriceLevels& levels, const Order& incoming,
                                 Timestamp ts) {
     auto level_it = levels.begin(); // <- start at best price
     while (remaining > 0 && level_it != levels.end()) {
-        Price level_price = level_it->first;
+        const Price level_price = level_it->first;
 
         // Price check for limit orders
         if (incoming.type == OrderType::Limit) {
@@ -278,8 +278,8 @@ void L3OrderBook::match_against(PriceLevels& levels, const Order& incoming,
         auto order_it = queue.begin(); // <- oldest order at this price (queue position 0)
         while (remaining > 0 && order_it != queue.end()) {
             auto& resting = *order_it;
-            Quantity resting_available = resting.visible_qty + resting.hidden_qty;
-            Quantity match_qty = std::min(remaining, resting_available);
+            const Quantity resting_available = resting.visible_qty + resting.hidden_qty;
+            const Quantity match_qty = std::min(remaining, resting_available);
             // ... build Trade, fire trade_cb_, reduce quantities
         }
     }
@@ -365,13 +365,19 @@ this point on, the iterator `it` is the order's permanent address in the book.
 
 ### Step 6 — Time-in-force dispatch table
 
-| TIF | Remaining after matching | Action |
-|-----|--------------------------|--------|
-| GTC | > 0 | `add_resting_order()` — order lives until explicitly canceled |
-| Day | > 0 | `add_resting_order()` — order lives until end of session |
-| IOC | > 0 | Cancel remainder; `leaves_qty = 0`; status = Canceled (or PartiallyFilled if some filled) |
-| FOK | > 0 | Reject; `filled_qty = 0`; `leaves_qty = 0`; status = Rejected (pre-scan should have caught this) |
-| FOK | = 0 | Fully filled normally |
+The TIF block only runs when `remaining_qty > 0`. When `remaining_qty == 0` the order
+is already `Filled` regardless of TIF — no dispatch needed.
+
+| TIF | filled_qty | remaining_qty | Resulting status | Book action |
+|-----|------------|---------------|-----------------|-------------|
+| GTC / Day | 0          | \> 0          | New | `add_resting_order()` — full quantity rests |
+| GTC / Day | \> 0       | \> 0          | PartiallyFilled | `add_resting_order()` — remainder rests |
+| GTC / Day | any        | 0             | Filled | — order fully consumed, nothing to rest |
+| IOC | 0          | \> 0          | Canceled | remainder discarded, `leaves_qty = 0` |
+| IOC | \> 0       | \> 0          | PartiallyFilled | remainder discarded, `leaves_qty = 0` |
+| IOC | any        | 0             | Filled | — order fully consumed |
+| FOK | any        | \> 0          | Rejected | pre-scan should have caught this; `filled_qty = 0` |
+| FOK | any        | 0             | Filled | — fully consumed in one sweep |
 
 ### Step 7 — `publish_tob()` — fire callbacks after state settles
 
@@ -383,11 +389,26 @@ void L3OrderBook::publish_tob(Timestamp ts) {
 }
 ```
 
-`publish_tob` fires when the book state actually changed — either trades occurred
-or a new order is resting. Rejected orders and fully-cancelled IOC/FOK orders do
-not trigger a TOB update. The `top_of_book()` method also computes `micro_price`
+`publish_tob` is triggered whenever the book state actually changes—such as when 
+a trade occurs or when a new order becomes resting in the book. A successful cancel 
+also triggers it, since the book has changed and downstream consumers must receive 
+the updated best bid/ask. Rejected orders and IOC/FOK orders that leave no resting 
+liquidity (i.e., fully canceled) do **not** trigger a TOB update.
+
+
+The `top_of_book()` method also computes `micro_price`
 (the size-weighted mid-price) from the current best bid and ask quantities, which
 is a cleaner short-term price predictor than the arithmetic mid.
+
+**`micro_price`** in the published `TopOfBook` is the size-weighted mid:
+```
+micro_price = (bid_price × ask_qty + ask_price × bid_qty) / (bid_qty + ask_qty)
+```
+It weights each side's price by the *opposite* side's quantity. If ask_qty >> bid_qty,
+the microprice pulls toward the ask — reflecting that supply overwhelms demand and the
+true equilibrium is probably near the ask. Market makers use it as their primary
+quote-midpoint reference: when microprice diverges from arithmetic mid, they shade
+their quotes toward where the book imbalance says price will move next.
 
 ---
 
