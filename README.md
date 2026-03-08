@@ -51,33 +51,33 @@ HFT-sdk/
     ├── library_anchor.cpp          # Library anchor (for static lib linkage)
     │
     ├── common/                     # ── Shared foundations ──
-    │   ├── types.h                 # Core types: Order, Trade, Symbol, enums, events
-    │   ├── constants.h             # Compile-time constants (buffer sizes, defaults)
-    │   ├── clock.h / clock.cpp     # Wall-clock / simulated clock (ns resolution)
-    │   └── memory_pool.h           # Lock-free fixed-capacity object pool
+    │   ├── types.hpp               # Core types: Order, Trade, Symbol, enums, events
+    │   ├── constants.hpp           # Compile-time constants (buffer sizes, defaults)
+    │   ├── clock.hpp / clock.cpp   # Wall-clock / simulated clock (ns resolution)
+    │   └── memory_pool.hpp         # Lock-free fixed-capacity object pool
     │
     ├── orderbook/                  # ── Order book hierarchy ──
-    │   ├── l3_order_book.h/.cpp    # L3 order book (full order-level, iceberg, FOK/IOC)
-    │   ├── l2_aggregator.h/.cpp    # L2 depth snapshot aggregation (Market-by-Price)
-    │   └── l1_feed.h/.cpp          # L1 top-of-book, microprice, VWAP, rolling spread
+    │   ├── l3_order_book.hpp/.cpp  # L3 order book (full order-level, iceberg, FOK/IOC)
+    │   ├── l2_aggregator.hpp/.cpp  # L2 depth snapshot aggregation (Market-by-Price)
+    │   └── l1_feed.hpp/.cpp        # L1 top-of-book, microprice, VWAP, rolling spread
     │
     ├── market/                     # ── Market engine components ──
     │   ├── README.md               # Market module documentation
-    │   ├── matching_engine.h/.cpp  # Multi-symbol matching engine with risk integration
-    │   ├── trade_engine.h/.cpp     # Position tracking, PnL, mark-to-market
-    │   ├── order_book.h/.cpp       # Simple limit order book (lightweight alternative)
-    │   ├── market_data_engine.h/.cpp     # MD aggregation with throttling (HPRingBuffer)
-    │   └── market_data_publisher.h/.cpp  # Callback-based market data publisher
+    │   ├── matching_engine.hpp/.cpp  # Multi-symbol matching engine with risk integration
+    │   ├── trade_engine.hpp/.cpp     # Position tracking, PnL, mark-to-market
+    │   ├── order_book.hpp/.cpp       # Simple limit order book (lightweight alternative)
+    │   ├── market_data_engine.hpp/.cpp     # MD aggregation with throttling (HPRingBuffer)
+    │   └── market_data_publisher.hpp/.cpp  # Callback-based market data publisher
     │
     ├── latency/                    # ── Latency simulation ──
-    │   └── latency_model.h/.cpp    # Gaussian + heavy-tail latency with per-client profiles
+    │   └── latency_model.hpp/.cpp  # Gaussian + heavy-tail latency with per-client profiles
     │
     ├── risk/                       # ── Risk management ──
-    │   └── risk_engine.h/.cpp      # Position limits, rate limits, kill switch
+    │   └── risk_engine.hpp/.cpp    # Position limits, rate limits, kill switch
     │
     └── metrics/                    # ── Telemetry & metrics ──
-        ├── latency_histogram.h/.cpp  # O(1) fixed-bucket latency histogram
-        └── telemetry.h/.cpp          # Metrics aggregation & console dashboard
+        ├── latency_histogram.hpp/.cpp  # O(1) fixed-bucket latency histogram
+        └── telemetry.hpp/.cpp          # Metrics aggregation & console dashboard
 ```
 
 ## Build
@@ -85,12 +85,39 @@ HFT-sdk/
 Prerequisites: CMake ≥ 3.20 and a C++23-capable compiler (GCC 13+, Clang 17+, MSVC 2022+).
 
 ```bash
-mkdir -p build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build .
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j$(nproc)          # Linux
+cmake --build build -j$(sysctl -n hw.ncpu)  # macOS
 ```
 
 The static library target is `HFT-sdk` (alias `HFT::sdk`). Public headers live under `src/`.
+
+## Tests
+
+Tests use [Google Test](https://github.com/google/googletest), fetched automatically by CMake.
+
+```bash
+# Build (tests are built by default; disable with -DHFT_SDK_BUILD_TESTS=OFF)
+cmake -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build -j$(sysctl -n hw.ncpu)
+
+# Run all tests
+./build/hft_sdk_tests
+
+# Run a specific test suite
+./build/hft_sdk_tests --gtest_filter="L3BookTest.*"
+./build/hft_sdk_tests --gtest_filter="HPRingBufferTest.*"
+
+# Run via CTest
+cd build && ctest --output-on-failure
+```
+
+Current test suites:
+
+| Suite | File | What it covers |
+|-------|------|----------------|
+| `HPRingBufferTest` | `tests/test_hpringbuffer.cpp` | Lock-free SPSC ring buffer — push/pop, capacity, move semantics, concurrent SPSC |
+| `L3BookTest` | `tests/test_l3_order_book.cpp` | L3 order book — add/cancel/replace, TIF (IOC/FOK/GTC/Day), price-time priority, queue position, callbacks |
 
 ## Usage
 
@@ -160,11 +187,11 @@ int main() {
 ### L3 Order Book + Matching Engine
 
 ```cpp
-#include "common/clock.h"
-#include "common/types.h"
-#include "market/matching_engine.h"
+#include "common/clock.hpp"
+#include "common/types.hpp"
+#include "market/matching_engine.hpp"
 
-using namespace HFT-sdk;
+using namespace HFT_sdk;
 
 int main() {
     Clock clock(Clock::Mode::Simulated);
@@ -199,9 +226,9 @@ int main() {
 ### Risk Engine
 
 ```cpp
-#include "risk/risk_engine.h"
+#include "risk/risk_engine.hpp"
 
-using namespace HFT-sdk;
+using namespace HFT_sdk;
 
 RiskEngine risk;
 risk.setDefaultLimits({.max_position_per_symbol = 1000, .max_order_rate = 500});
@@ -218,9 +245,9 @@ risk.kill_all();               // global kill switch
 ### Latency Model
 
 ```cpp
-#include "latency/latency_model.h"
+#include "latency/latency_model.hpp"
 
-HFT-sdk::LatencyModel model(/*seed=*/42);
+HFT_sdk::LatencyModel model(/*seed=*/42);
 auto breakdown = model.sample_round_trip(trader_id);
 // breakdown.network_inbound_ns, .matching_engine_ns, .network_outbound_ns, .total_ns
 ```
@@ -228,9 +255,9 @@ auto breakdown = model.sample_round_trip(trader_id);
 ### Telemetry Dashboard
 
 ```cpp
-#include "metrics/telemetry.h"
+#include "metrics/telemetry.hpp"
 
-HFT-sdk::Telemetry telemetry(clock);
+HFT_sdk::Telemetry telemetry(clock);
 telemetry.record_order();
 telemetry.record_matching_latency(450);  // 450 ns
 telemetry.print_dashboard();             // formatted console output
