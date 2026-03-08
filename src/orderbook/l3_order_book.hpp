@@ -75,14 +75,22 @@ class L3OrderBook {
   // ── Query ──────────────────────────────────────────────────────────
   [[nodiscard]] const HFT_sdk::Symbol& symbol() const { return symbol_; }
 
-  [[nodiscard]] std::optional<HFT_sdk::BookLevel> best_bid() const;
-  [[nodiscard]] std::optional<HFT_sdk::BookLevel> best_ask() const;
+  [[nodiscard]] std::optional<HFT_sdk::BookLevel> best_bid() const {
+    return best_level(bids_);
+  }
+  [[nodiscard]] std::optional<HFT_sdk::BookLevel> best_ask() const {
+    return best_level(asks_);
+  }
   [[nodiscard]] HFT_sdk::TopOfBook top_of_book(HFT_sdk::Timestamp ts) const;
 
   [[nodiscard]] std::vector<HFT_sdk::BookLevel> bid_depth(
-      std::size_t levels) const;
+      std::size_t levels) const {
+    return depth(bids_, levels);
+  }
   [[nodiscard]] std::vector<HFT_sdk::BookLevel> ask_depth(
-      std::size_t levels) const;
+      std::size_t levels) const {
+    return depth(asks_, levels);
+  }
 
   /// Get L3 orders at a specific price level.
   [[nodiscard]] std::vector<L3Order> orders_at_price(
@@ -149,8 +157,22 @@ class L3OrderBook {
 
   void add_resting_order(const HFT_sdk::Order& order,
                          HFT_sdk::Quantity remaining, HFT_sdk::Timestamp ts);
-  void update_queue_positions(HFT_sdk::Side side, HFT_sdk::Price price);
+  static void update_queue_positions(OrderQueue& queue);
+  static void replenish_iceberg(L3Order& o);
+
+  template <typename PriceLevels>
+  void remove_from_level(PriceLevels& levels, HFT_sdk::Price price,
+                         OrderQueue::iterator it, std::size_t& order_count);
   void publish_tob(HFT_sdk::Timestamp ts);
+
+  // ── Query helpers ──────────────────────────────────────────────────────────
+  template <typename PriceLevels>
+  [[nodiscard]] std::optional<HFT_sdk::BookLevel> best_level(
+      const PriceLevels& levels) const;
+
+  template <typename PriceLevels>
+  [[nodiscard]] std::vector<HFT_sdk::BookLevel> depth(
+      const PriceLevels& levels, std::size_t n) const;
   // ── Counters ───────────────────────────────────────────────────────
   std::uint64_t trade_count_ = 0;
   std::uint64_t next_trade_id_ = 1;

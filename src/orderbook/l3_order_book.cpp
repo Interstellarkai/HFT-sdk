@@ -107,28 +107,11 @@ ExecutionReport L3OrderBook::cancel_order(OrderId id, Timestamp ts) {
   std::memcpy(rpt.cl_ord_id, l3_order.cl_ord_id, sizeof(rpt.cl_ord_id));
 
   // Remove from book
-  Price price = loc.price;
-  if (loc.side == Side::Buy) {
-    auto level_it = bids_.find(price);
-    if (level_it != bids_.end()) {
-      level_it->second.erase(loc.it);
-      if (level_it->second.empty())
-        bids_.erase(level_it);
-      else
-        update_queue_positions(Side::Buy, price);
-    }
-    --bid_order_count_;
-  } else {
-    auto level_it = asks_.find(price);
-    if (level_it != asks_.end()) {
-      level_it->second.erase(loc.it);
-      if (level_it->second.empty())
-        asks_.erase(level_it);
-      else
-        update_queue_positions(Side::Sell, price);
-    }
-    --ask_order_count_;
-  }
+  const Price price = loc.price;
+  if (loc.side == Side::Buy)
+    remove_from_level(bids_, price, loc.it, bid_order_count_);
+  else
+    remove_from_level(asks_, price, loc.it, ask_order_count_);
 
   order_index_.erase(it);
   publish_tob(ts);
@@ -169,15 +152,15 @@ MatchResult L3OrderBook::match_incoming(const Order& order, Timestamp ts) {
   if (order.tif == TimeInForce::FOK) {
     Quantity available = 0;
     if (order.side == Side::Buy) {
-      for (auto& [price, queue] : asks_) {
+      for (const auto& [price, queue] : asks_) {
         if (order.type == OrderType::Limit && price > order.price) break;
-        for (auto& o : queue) available += o.visible_qty + o.hidden_qty;
+        for (const auto& o : queue) available += o.visible_qty + o.hidden_qty;
         if (available >= order.quantity) break;
       }
     } else {
-      for (auto& [price, queue] : bids_) {
+      for (const auto& [price, queue] : bids_) {
         if (order.type == OrderType::Limit && price < order.price) break;
-        for (auto& o : queue) available += o.visible_qty + o.hidden_qty;
+        for (const auto& o : queue) available += o.visible_qty + o.hidden_qty;
         if (available >= order.quantity) break;
       }
     }
@@ -203,7 +186,7 @@ void L3OrderBook::match_against(PriceLevels& levels, const Order& incoming,
                                 Timestamp ts) {
   auto level_it = levels.begin();
   while (remaining > 0 && level_it != levels.end()) {
-    Price level_price = level_it->first;
+    const Price level_price = level_it->first;
 
     // Price check for limit orders
     if (incoming.type == OrderType::Limit) {
@@ -215,8 +198,8 @@ void L3OrderBook::match_against(PriceLevels& levels, const Order& incoming,
     auto order_it = queue.begin();
     while (remaining > 0 && order_it != queue.end()) {
       auto& resting = *order_it;
-      Quantity resting_available = resting.visible_qty + resting.hidden_qty;
-      Quantity match_qty = std::min(remaining, resting_available);
+      const Quantity resting_available = resting.visible_qty + resting.hidden_qty;
+      const Quantity match_qty = std::min(remaining, resting_available);
 
       // Create trade
       Trade trade;
@@ -252,12 +235,8 @@ void L3OrderBook::match_against(PriceLevels& levels, const Order& incoming,
 
       // Iceberg replenishment
       if (resting.visible_qty == 0 && resting.hidden_qty > 0 &&
-          resting.is_iceberg) {
-        Quantity replenish =
-            std::min(resting.hidden_qty, static_cast<Quantity>(100));
-        resting.visible_qty = replenish;
-        resting.hidden_qty -= replenish;
-      }
+          resting.is_iceberg)
+        replenish_iceberg(resting);
 
       if (resting.visible_qty + resting.hidden_qty == 0) {
         // Order fully filled — remove
@@ -311,18 +290,24 @@ void L3OrderBook::add_resting_order(const Order& order, Quantity remaining,
   }
 }
 
-void L3OrderBook::update_queue_positions(Side side, Price price) {
-  if (side == Side::Buy) {
-    auto it = bids_.find(price);
-    if (it == bids_.end()) return;
-    std::uint32_t pos = 0;
-    for (auto& o : it->second) o.queue_pos = pos++;
-  } else {
-    auto it = asks_.find(price);
-    if (it == asks_.end()) return;
-    std::uint32_t pos = 0;
-    for (auto& o : it->second) o.queue_pos = pos++;
+void L3OrderBook::update_queue_positions(OrderQueue& queue) {
+  std::uint32_t pos = 0;
+  for (auto& o : queue) o.queue_pos = pos++;
+}
+
+template <typename PriceLevels>
+void L3OrderBook::remove_from_level(PriceLevels& levels, Price price,
+                                    OrderQueue::iterator it,
+                                    std::size_t& order_count) {
+  auto level_it = levels.find(price);
+  if (level_it != levels.end()) {
+    level_it->second.erase(it);
+    if (level_it->second.empty())
+      levels.erase(level_it);           // level gone — skip O(n) reindex
+    else
+      update_queue_positions(level_it->second);  // O(n) only when level survives
   }
+  --order_count;
 }
 
 void L3OrderBook::publish_tob(Timestamp ts) {
@@ -332,30 +317,6 @@ void L3OrderBook::publish_tob(Timestamp ts) {
 }
 
 // ── Query Methods ──────────────────────────────────────────────────────────
-std::optional<BookLevel> L3OrderBook::best_bid() const {
-  if (bids_.empty()) return std::nullopt;
-  auto& [price, queue] = *bids_.begin();
-  Quantity total = 0;
-  std::uint32_t count = 0;
-  for (auto& o : queue) {
-    total += o.visible_qty;
-    ++count;
-  }
-  return BookLevel{price, total, count};
-}
-
-std::optional<BookLevel> L3OrderBook::best_ask() const {
-  if (asks_.empty()) return std::nullopt;
-  auto& [price, queue] = *asks_.begin();
-  Quantity total = 0;
-  std::uint32_t count = 0;
-  for (auto& o : queue) {
-    total += o.visible_qty;
-    ++count;
-  }
-  return BookLevel{price, total, count};
-}
-
 TopOfBook L3OrderBook::top_of_book(Timestamp ts) const {
   TopOfBook tob{};
   tob.symbol = symbol_;
@@ -389,42 +350,6 @@ TopOfBook L3OrderBook::top_of_book(Timestamp ts) const {
   }
 
   return tob;
-}
-
-std::vector<BookLevel> L3OrderBook::bid_depth(std::size_t levels) const {
-  std::vector<BookLevel> result;
-  result.reserve(levels);
-  std::size_t n = 0;
-  for (auto& [price, queue] : bids_) {
-    if (n >= levels) break;
-    Quantity total = 0;
-    std::uint32_t count = 0;
-    for (auto& o : queue) {
-      total += o.visible_qty;
-      ++count;
-    }
-    result.push_back({price, total, count});
-    ++n;
-  }
-  return result;
-}
-
-std::vector<BookLevel> L3OrderBook::ask_depth(std::size_t levels) const {
-  std::vector<BookLevel> result;
-  result.reserve(levels);
-  std::size_t n = 0;
-  for (auto& [price, queue] : asks_) {
-    if (n >= levels) break;
-    Quantity total = 0;
-    std::uint32_t count = 0;
-    for (auto& o : queue) {
-      total += o.visible_qty;
-      ++count;
-    }
-    result.push_back({price, total, count});
-    ++n;
-  }
-  return result;
 }
 
 std::vector<L3Order> L3OrderBook::orders_at_price(Side side,
@@ -461,7 +386,7 @@ Quantity L3OrderBook::quantity_ahead(OrderId id) const {
   if (loc.side == Side::Buy) {
     auto level_it = bids_.find(loc.price);
     if (level_it != bids_.end()) {
-      for (auto& o : level_it->second) {
+      for (const auto& o : level_it->second) {
         if (o.id == id) break;
         ahead += o.visible_qty;
       }
@@ -469,7 +394,7 @@ Quantity L3OrderBook::quantity_ahead(OrderId id) const {
   } else {
     auto level_it = asks_.find(loc.price);
     if (level_it != asks_.end()) {
-      for (auto& o : level_it->second) {
+      for (const auto& o : level_it->second) {
         if (o.id == id) break;
         ahead += o.visible_qty;
       }
@@ -479,8 +404,66 @@ Quantity L3OrderBook::quantity_ahead(OrderId id) const {
   return ahead;
 }
 
+// ── Query Template Helpers ─────────────────────────────────────────────────
+template <typename PriceLevels>
+std::optional<BookLevel> L3OrderBook::best_level(
+    const PriceLevels& levels) const {
+  if (levels.empty()) return std::nullopt;
+  const auto& [price, queue] = *levels.begin();
+  Quantity total = 0;
+  std::uint32_t count = 0;
+  for (const auto& o : queue) {
+    total += o.visible_qty;
+    ++count;
+  }
+  return BookLevel{price, total, count};
+}
+
+template <typename PriceLevels>
+std::vector<BookLevel> L3OrderBook::depth(
+    const PriceLevels& levels, std::size_t n) const {
+  std::vector<BookLevel> result;
+  result.reserve(n);
+  std::size_t i = 0;
+  for (const auto& [price, queue] : levels) {
+    if (i >= n) break;
+    Quantity total = 0;
+    std::uint32_t count = 0;
+    for (const auto& o : queue) {
+      total += o.visible_qty;
+      ++count;
+    }
+    result.push_back({price, total, count});
+    ++i;
+  }
+  return result;
+}
+
+void L3OrderBook::replenish_iceberg(L3Order& o) {
+  const Quantity replenish =
+      std::min(o.hidden_qty, static_cast<Quantity>(100));
+  o.visible_qty = replenish;
+  o.hidden_qty -= replenish;
+}
+
 // Explicit template instantiations
+template void L3OrderBook::remove_from_level<L3OrderBook::BidPriceLevels>(
+    BidPriceLevels&, Price, OrderQueue::iterator, std::size_t&);
+template void L3OrderBook::remove_from_level<L3OrderBook::AskPriceLevels>(
+    AskPriceLevels&, Price, OrderQueue::iterator, std::size_t&);
 template void L3OrderBook::match_against<L3OrderBook::BidPriceLevels>(
     BidPriceLevels&, const Order&, Quantity&, std::vector<Trade>&, Timestamp);
 template void L3OrderBook::match_against<L3OrderBook::AskPriceLevels>(
     AskPriceLevels&, const Order&, Quantity&, std::vector<Trade>&, Timestamp);
+template std::optional<BookLevel>
+    L3OrderBook::best_level<L3OrderBook::BidPriceLevels>(
+        const BidPriceLevels&) const;
+template std::optional<BookLevel>
+    L3OrderBook::best_level<L3OrderBook::AskPriceLevels>(
+        const AskPriceLevels&) const;
+template std::vector<BookLevel>
+    L3OrderBook::depth<L3OrderBook::BidPriceLevels>(
+        const BidPriceLevels&, std::size_t) const;
+template std::vector<BookLevel>
+    L3OrderBook::depth<L3OrderBook::AskPriceLevels>(
+        const AskPriceLevels&, std::size_t) const;
