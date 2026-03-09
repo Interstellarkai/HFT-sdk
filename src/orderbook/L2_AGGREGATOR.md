@@ -10,7 +10,7 @@ After this doc, continue with [`L1_FEED.md`](L1_FEED.md).
 
 The `L2Aggregator` is a thin, read-only lens over an `L3OrderBook`. Its job is to collapse individual order-level detail into **price-level totals** — a representation known as Market-by-Price (MBP).
 
-At L3 you can see every resting order: trader A has 200 shares at $100.05, trader B has 150 shares at $100.05, trader C has 400 shares at $100.00. At L2 those are collapsed: $100.05 shows 350 shares across 2 orders; $100.00 shows 400 shares across 1 order.
+At L3 you can see every resting order: trader A has 200 shares at \$100.05, trader B has 150 shares at \$100.05, trader C has 400 shares at \$100.00. At L2 those are collapsed: $100.05 shows 350 shares across 2 orders; \$100.00 shows 400 shares across 1 order.
 
 `L2Aggregator` has no state of its own. It holds a `const` reference to the `L3OrderBook` and recomputes everything on demand. There is no cache to invalidate, no shadow copy to keep in sync, no update notifications to handle. Every call to `snapshot()` walks the live L3 book and produces a fresh result. It is a view, not a cache.
 
@@ -62,8 +62,8 @@ Defined in `src/common/types.hpp`:
 
 ```cpp
 struct BookLevel {
-  Price price;                  // <- integer ticks, e.g. 10005 = $100.05 at 2dp
-  Quantity qty;                 // <- total visible quantity across all orders at this price
+  Price price;                   // <- integer ticks, e.g. 10005 = $100.05 at 2dp
+  Quantity qty;                  // <- total visible quantity across all orders at this price
   std::uint32_t order_count = 0; // <- number of individual orders resting here
 };
 ```
@@ -98,7 +98,7 @@ Defined in `src/orderbook/l2_aggregator.hpp`:
 ```cpp
 class L2Aggregator {
  public:
-  explicit L2Aggregator(const L3OrderBook& book,        // <- takes a const ref: read-only, no ownership
+  explicit L2Aggregator(const L3OrderBook& book,               // <- takes a const ref: read-only, no ownership
                         std::size_t depth = DEFAULT_L2_DEPTH); // <- DEFAULT_L2_DEPTH = 10
 
   [[nodiscard]] DepthSnapshot snapshot(Timestamp ts) const;
