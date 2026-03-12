@@ -106,7 +106,7 @@ struct TradeRecord {
 };
 
 std::deque<TradeRecord> recent_trades_;                    // <- rolling trade window
-static constexpr std::size_t MAX_TRADE_HISTORY = 1000;    // <- hard cap on entries
+static constexpr std::size_t MAX_TRADE_HISTORY = 1000;     // <- hard cap on entries
 ```
 
 `std::deque` is chosen for its O(1) `push_back` and O(1) `pop_front`. A
@@ -181,8 +181,8 @@ Full implementation from `l1_feed.cpp`:
 TopOfBook L1Feed::update(Timestamp ts) {
   last_tob_ = book_.top_of_book(ts);    // <- single query to L3 book; result is a value copy
 
-  if (last_tob_.valid && last_tob_.spread > 0) {  // <- guard: only record meaningful spreads
-    spread_history_.push_back(last_tob_.spread);   // <- append to back of rolling window
+  if (last_tob_.valid && last_tob_.spread > 0) {    // <- guard: only record meaningful spreads
+    spread_history_.push_back(last_tob_.spread);    // <- append to back of rolling window
     if (spread_history_.size() > MAX_SPREAD_HISTORY) {
       spread_history_.pop_front();                  // <- evict oldest when cap is reached
     }
@@ -305,7 +305,7 @@ double L1Feed::rolling_spread(std::size_t window) const {
   double sum = 0.0;
   auto it = spread_history_.end();               // <- start at one-past-last
   for (std::size_t i = 0; i < n; ++i) {
-    --it;                                         // <- step backward: iterates most-recent first
+    --it;                                        // <- step backward: iterates most-recent first
     sum += static_cast<double>(*it);
   }
   return sum / static_cast<double>(n);           // <- average over n most-recent samples
